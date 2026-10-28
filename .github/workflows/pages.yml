@@ -2,12 +2,19 @@ name: Pages
 
 # Builds the site from the pinned dataset (data/settings.json), the evidence store and the stores it
 # imports, checks it, and publishes it. Intake, follow.yml and voyager.yml run it after they record
-# something, and a push that changes the site or the store does too. Only main publishes: on another
-# branch the site is built and checked, not deployed.
+# something, and a push that changes the store does too. Only main publishes: on another branch the
+# site is built and checked, not deployed.
+#
+# The site's code (web/, the build, its browser check) lives in the website repository, under review/,
+# named by the WEBSITE_REPO repository variable; this repository holds the data the site is built from.
+# The website serves the same app and reads the data/ this publishes. The hourly schedule carries a
+# change to the app here within the hour, so the data/ it reads is never long in an older shape.
 on:
   push:
     branches: [main]
-    paths: ['web/**', 'scripts/**', 'evidence/**', 'data/settings.json', 'requirements*.txt', '.github/workflows/pages.yml']
+    paths: ['scripts/**', 'evidence/**', 'data/settings.json', 'requirements*.txt', '.github/workflows/pages.yml']
+  schedule:
+    - cron: '41 * * * *'
   workflow_dispatch:
     inputs:
       deploy:
@@ -35,10 +42,21 @@ jobs:
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
+      # The website's tests read this repository's forms and scripts from here.
+      TAU_REVIEW_DATA: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+      - name: Which repository holds the site's code
+        run: |
+          [ -n "${{ vars.WEBSITE_REPO }}" ] || { echo "::error::set the WEBSITE_REPO repository variable (owner/name of the website repository)"; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.WEBSITE_REPO }}
+          ref: main
+          path: app
+          sparse-checkout: review
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -48,8 +66,6 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Unit tests
         run: python -m unittest discover -s tests
-      - name: The browser check, on the fixture's site
-        run: python tests/validate_site.py
       - name: The pinned dataset, Tau Ceti's sources at it, and the stores this one imports
         run: |
           commit=$(python3 -c "import json; print(json.load(open('data/settings.json'))['tauceti'])")
@@ -61,9 +77,9 @@ jobs:
       - name: No signature prints a binder without its type
         run: python scripts/check_signatures.py --dataset "$RUNNER_TEMP/dataset" --offline
       - name: Build
-        run: python scripts/build_site.py --dataset "$RUNNER_TEMP/dataset" --source "$RUNNER_TEMP/TauCeti" --imports "$RUNNER_TEMP/imports" --out _site
+        run: python app/review/scripts/build_site.py --settings data/settings.json --store evidence --dataset "$RUNNER_TEMP/dataset" --source "$RUNNER_TEMP/TauCeti" --imports "$RUNNER_TEMP/imports" --out _site
       - name: The browser check, on the build
-        run: python tests/validate_site.py --site _site --smoke
+        run: python app/review/tests/validate_site.py --site _site --smoke
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

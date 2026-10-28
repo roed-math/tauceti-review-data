@@ -75,7 +75,8 @@ class DatasetWorkflowTests(unittest.TestCase):
                 continue  # evidence-store's, generated
             for name, job in load(f.name)["jobs"].items():
                 for s in steps(job):
-                    if s.get("uses", "").startswith("actions/checkout@"):
+                    # The site's code, checked out from the website repository, is that repository's main.
+                    if s.get("uses", "").startswith("actions/checkout@") and "repository" not in (s.get("with") or {}):
                         self.assertEqual((s.get("with") or {}).get("ref"), "${{ github.ref }}", f"{f.name}: {name}")
 
 
@@ -139,8 +140,8 @@ class PagesWorkflowTests(unittest.TestCase):
         for trigger in ("push", "workflow_dispatch", "workflow_call"):
             self.assertIn(trigger, wf["on"])
         text = runs(wf["jobs"]["build"])
-        for command in ("python -m unittest discover -s tests", "python tests/validate_site.py",
-                        "python scripts/build_site.py", "python tests/validate_site.py --site _site --smoke"):
+        for command in ("python -m unittest discover -s tests", "python app/review/scripts/build_site.py --settings data/settings.json --store evidence",
+                        "python app/review/tests/validate_site.py --site _site --smoke"):
             self.assertIn(command, text)
         self.assertEqual(wf["jobs"]["deploy"]["if"], "github.ref == 'refs/heads/main' && format('{0}', inputs.deploy) != 'false'")
 

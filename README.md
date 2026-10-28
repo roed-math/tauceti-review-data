@@ -8,6 +8,13 @@ what rests on it, who has checked it and on which version, the problems reported
 and the tests people would like. It leads with the named results and notable definitions Voyager has
 announced on the Lean Zulip, the declarations people are likely to care about.
 
+**This repository is the review's data and pipeline**: the evidence store, the issue forms and intake, the
+workflows that follow Tau Ceti and record Voyager's announcements, the published datasets, and the
+answerer. The site's own code (`web/`, `scripts/build_site.py`, `scripts/site_data.py`, the sign-in
+worker and the browser check) lives in the Tau Ceti website repository, under `review/`, which serves
+the site and reads the `data/` this repository's Pages publish. `pages.yml` builds the site here with
+that code, so set the `WEBSITE_REPO` repository variable to the website repository (`owner/name`).
+
 Nothing here changes Tau Ceti. Every record is kept in this repository's evidence store, pinned to the
 declaration's meaning hash: when the declaration, or anything it rests on, changes, the record stays
 and says so.

@@ -16,7 +16,6 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "scripts"))
-import build_site  # noqa: E402
 import voyager  # noqa: E402
 
 from evidence_core import records as rec  # noqa: E402
@@ -109,6 +108,9 @@ def build(out: Path, budget_mb: int = 800, cap: int = 60, settings: dict | None 
     store.add(extra_records(ds))
     store.add(voyager.named_records(ANNOUNCEMENTS, ds, store, SETTINGS["voyager"]))
     imported_store(ds, tmp / "imports")
+    # The site's build lives with the site, in the website repository's review/; the answerer's tests use
+    # only this file's fixture data, so the import waits until a test builds.
+    import build_site
     return build_site.build(dataset, tmp / "evidence", Path(out), settings or SETTINGS, source=SOURCE,
                             imports=tmp / "imports", budget_mb=budget_mb, cap=cap)
 
